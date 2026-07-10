@@ -1,5 +1,7 @@
-import { useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import "./ExportRequestFormPage.css";
+
+import { getContext } from "@microsoft/power-apps/app";
 
 import {
   cantidadContenedoresOptions,
@@ -28,19 +30,37 @@ import type {
 
 type TextExportFormField = Exclude<keyof ExportFormState, "consignatario">;
 
-function getCurrentUserName() {
-  /**
-   * Temporal:
-   * Después reemplazamos esto con el usuario real de Power Apps/Teams.
-   */
-  return "Usuario conectado";
-}
+type RegisteredUser = {
+  fullName: string;
+  email: string;
+  isLoaded: boolean;
+};
+
+const DEFAULT_REGISTERED_USER: RegisteredUser = {
+  fullName: "Cargando usuario...",
+  email: "",
+  isLoaded: false,
+};
 
 const EXPORT_EMAIL_RECIPIENT = "victor.mendoza@dirego.com";
-const MAX_ATTACHMENT_FILES = 5;
+const MAX_ATTACHMENT_FILES = 10;
 const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
-const ACCEPTED_ATTACHMENT_TYPES = ".pdf,.xls,.xlsx";
-const ALLOWED_ATTACHMENT_EXTENSIONS = ["pdf", "xls", "xlsx"];
+const MAX_TOTAL_ATTACHMENT_SIZE_BYTES = 20 * 1024 * 1024;
+const ACCEPTED_ATTACHMENT_TYPES =
+  ".doc,.docx,.xls,.xlsx,.pdf,.jpg,.jpeg,.png,.zip,.rar";
+const ALLOWED_ATTACHMENT_EXTENSIONS = [
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "pdf",
+  "jpg",
+  "jpeg",
+  "png",
+  "zip",
+  "rar",
+];
+const ALLOWED_ATTACHMENT_TYPES_LABEL = "Word, Excel, PDF, JPG, PNG, ZIP y RAR";
 
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -65,6 +85,68 @@ function isAllowedAttachment(file: File) {
   return ALLOWED_ATTACHMENT_EXTENSIONS.includes(extension);
 }
 
+function getTotalAttachmentSize(files: File[]) {
+  return files.reduce((total, file) => total + file.size, 0);
+}
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .toUpperCase();
+}
+
+function isCotizacionInformativa(icoterm: string) {
+  return normalizeText(icoterm) === "COTIZACION INFORMATIVA";
+}
+
+function isAttachmentsRequiredForIcoterm(icoterm: string) {
+  if (!icoterm.trim()) return false;
+
+  return !isCotizacionInformativa(icoterm);
+}
+
+function getMatchingProveedorOption(proveedor: string) {
+  const normalizedProveedor = normalizeText(proveedor);
+
+  if (!normalizedProveedor) return null;
+
+  return (
+    proveedorOptions.find((option) => normalizeText(option) === normalizedProveedor) ??
+    null
+  );
+}
+
+function getProveedorValidationMessage(proveedor: string) {
+  if (!proveedor.trim()) return "Captura el proveedor.";
+
+  if (!getMatchingProveedorOption(proveedor)) {
+    return "Selecciona un proveedor registrado de la lista.";
+  }
+
+  return "";
+}
+
+function isConsolidadoTipo(tipo: string) {
+  return normalizeText(tipo) === "CONSOLIDADO";
+}
+
+function formatDateInputValue(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+function addDays(date: Date, days: number) {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+
+  return nextDate;
+}
+
 export function ExportRequestFormPage() {
   const [form, setForm] = useState<ExportFormState>(initialExportFormState);
   const [errors, setErrors] = useState<ExportFormErrors>({});
@@ -76,7 +158,72 @@ export function ExportRequestFormPage() {
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [attachmentError, setAttachmentError] = useState("");
 
-  const realizadoPor = useMemo(() => getCurrentUserName(), []);
+  const [registeredUser, setRegisteredUser] = useState<RegisteredUser>(
+    DEFAULT_REGISTERED_USER
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadCurrentUser() {
+      try {
+        const context = await getContext();
+
+        const fullName =
+          context.user.fullName?.trim() ||
+          context.user.userPrincipalName?.trim() ||
+          "Usuario conectado";
+
+        const email = context.user.userPrincipalName?.trim() || "";
+
+        if (!isMounted) return;
+
+        setRegisteredUser({
+          fullName,
+          email,
+          isLoaded: true,
+        });
+      } catch (error) {
+        console.error("No se pudo obtener el usuario de Power Apps.", error);
+
+        if (!isMounted) return;
+
+        setRegisteredUser({
+          fullName: "Usuario conectado",
+          email: "",
+          isLoaded: true,
+        });
+      }
+    }
+
+    loadCurrentUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const realizadoPor = registeredUser.fullName;
+  const attachmentsRequired = isAttachmentsRequiredForIcoterm(form.icoterm);
+  const isConsolidado = isConsolidadoTipo(form.tipo);
+
+  const todayInputDate = useMemo(() => formatDateInputValue(new Date()), []);
+  const maxFechaMaterialListo = useMemo(
+    () => formatDateInputValue(addDays(new Date(), 7)),
+    []
+  );
+
+  const sectionNumbers = useMemo(
+    () => ({
+      contenedores: "02",
+      fechaConsignatario: isConsolidado ? "02" : "03",
+      ordenesRuta: isConsolidado ? "03" : "04",
+      proveedor: isConsolidado ? "04" : "05",
+      comentariosRegistro: isConsolidado ? "05" : "06",
+      adjuntos: isConsolidado ? "06" : "07",
+    }),
+    [isConsolidado]
+  );
 
   const consignatarioSummary = useMemo(() => {
     if (form.consignatario.length === 0) {
@@ -104,7 +251,7 @@ export function ExportRequestFormPage() {
     const search = form.proveedor.trim().toLowerCase();
 
     if (!search) {
-      return proveedorOptions.slice(0, 12);
+      return proveedorOptions;
     }
 
     const startsWithMatches = proveedorOptions.filter((option) =>
@@ -120,19 +267,39 @@ export function ExportRequestFormPage() {
       );
     });
 
-    return [...startsWithMatches, ...containsMatches].slice(0, 12);
+    return [...startsWithMatches, ...containsMatches];
   }, [form.proveedor]);
 
   const updateField = (field: TextExportFormField, value: string) => {
     setForm((prev) => ({
       ...prev,
       [field]: value,
+      ...(field === "tipo" && isConsolidadoTipo(value)
+        ? {
+            cantidadContenedores: "",
+            tamanoTipoContenedor: "",
+            cantidadContenedores20: "",
+            cantidadContenedores40: "",
+          }
+        : {}),
     }));
 
     setErrors((prev) => ({
       ...prev,
       [field]: "",
+      ...(field === "tipo" && isConsolidadoTipo(value)
+        ? {
+            cantidadContenedores: "",
+            tamanoTipoContenedor: "",
+            cantidadContenedores20: "",
+            cantidadContenedores40: "",
+          }
+        : {}),
     }));
+
+    if (field === "icoterm") {
+      setAttachmentError("");
+    }
 
     setSubmitMessage(null);
   };
@@ -177,12 +344,27 @@ export function ExportRequestFormPage() {
       }
 
       if (!isAllowedAttachment(file)) {
-        messages.push(`El archivo ${file.name} no es válido. Solo se permiten PDF, XLS y XLSX.`);
+        messages.push(
+          `El archivo ${file.name} no es válido. Solo se permiten ${ALLOWED_ATTACHMENT_TYPES_LABEL}.`
+        );
         return;
       }
 
       if (file.size > MAX_ATTACHMENT_SIZE_BYTES) {
-        messages.push(`El archivo ${file.name} supera el límite de 10 MB.`);
+        messages.push(
+          `El archivo ${file.name} supera el límite de ${formatFileSize(
+            MAX_ATTACHMENT_SIZE_BYTES
+          )}.`
+        );
+        return;
+      }
+
+      if (getTotalAttachmentSize(nextFiles) + file.size > MAX_TOTAL_ATTACHMENT_SIZE_BYTES) {
+        messages.push(
+          `No puedes superar ${formatFileSize(
+            MAX_TOTAL_ATTACHMENT_SIZE_BYTES
+          )} en total entre todos los adjuntos.`
+        );
         return;
       }
 
@@ -407,35 +589,66 @@ export function ExportRequestFormPage() {
 
   const validateForm = () => {
     const nextErrors: ExportFormErrors = {};
+    const totalContenedores = Number(form.cantidadContenedores || 0);
+    const cantidad20 = Number(form.cantidadContenedores20 || 0);
+    const cantidad40 = Number(form.cantidadContenedores40 || 0);
+    const isConsolidadoOperation = isConsolidadoTipo(form.tipo);
 
+    /**
+     * Regla de negocio:
+     * Todos los campos son requeridos excepto "comentarios".
+     */
     if (!form.icoterm.trim()) nextErrors.icoterm = "Selecciona el ICOTERM.";
     if (!form.tipo.trim()) nextErrors.tipo = "Selecciona el tipo de operación.";
 
-    if (!form.cantidadContenedores.trim()) {
-      nextErrors.cantidadContenedores = "Selecciona la cantidad total de contenedores.";
-    }
+    if (!isConsolidadoOperation) {
+      if (!form.cantidadContenedores.trim()) {
+        nextErrors.cantidadContenedores = "Selecciona la cantidad total de contenedores.";
+      }
 
-    if (!form.tamanoTipoContenedor.trim()) {
-      nextErrors.tamanoTipoContenedor = "Selecciona el tamaño/tipo de contenedor.";
-    }
+      if (!form.tamanoTipoContenedor.trim()) {
+        nextErrors.tamanoTipoContenedor = "Selecciona el tamaño/tipo de contenedor.";
+      }
 
-    if (
-      form.tamanoTipoContenedor === "Varios" &&
-      Number(form.cantidadContenedores || 0) <= 1
-    ) {
-      nextErrors.tamanoTipoContenedor =
-        "Para usar varios tamaños, selecciona al menos 2 contenedores.";
-    }
+      if (
+        form.tamanoTipoContenedor === "Varios" &&
+        totalContenedores <= 1
+      ) {
+        nextErrors.tamanoTipoContenedor =
+          "Para usar varios tamaños, selecciona al menos 2 contenedores.";
+      }
 
-    if (
-      form.tamanoTipoContenedor === "Varios" &&
-      !form.cantidadContenedores20.trim()
-    ) {
-      nextErrors.cantidadContenedores20 = "Selecciona la cantidad de contenedores de 20.";
+      if (
+        form.tamanoTipoContenedor === "Varios" &&
+        !form.cantidadContenedores20.trim()
+      ) {
+        nextErrors.cantidadContenedores20 =
+          "Selecciona la cantidad de contenedores de 20.";
+      }
+
+      if (
+        form.tamanoTipoContenedor === "Varios" &&
+        form.cantidadContenedores20.trim() &&
+        totalContenedores > 1 &&
+        cantidad20 + cantidad40 !== totalContenedores
+      ) {
+        nextErrors.cantidadContenedores20 =
+          "La suma de contenedores de 20 y 40 debe coincidir con la cantidad total.";
+      }
     }
 
     if (!form.fechaMaterialListo.trim()) {
       nextErrors.fechaMaterialListo = "Indica la fecha en que el material estará listo.";
+    } else {
+      const currentDate = formatDateInputValue(new Date());
+      const maxAllowedDate = formatDateInputValue(addDays(new Date(), 7));
+
+      if (form.fechaMaterialListo < currentDate) {
+        nextErrors.fechaMaterialListo = "La fecha no puede ser anterior al día de hoy.";
+      } else if (form.fechaMaterialListo > maxAllowedDate) {
+        nextErrors.fechaMaterialListo =
+          "La fecha material listo no puede ser mayor a 7 días a partir de hoy.";
+      }
     }
 
     if (form.consignatario.length === 0) {
@@ -458,7 +671,8 @@ export function ExportRequestFormPage() {
       nextErrors.puertoLlegada = "Selecciona el puerto de llegada.";
     }
 
-    if (!form.proveedor.trim()) nextErrors.proveedor = "Captura el proveedor.";
+    const proveedorError = getProveedorValidationMessage(form.proveedor);
+    if (proveedorError) nextErrors.proveedor = proveedorError;
 
     if (!form.datosFiscalesProveedor.trim()) {
       nextErrors.datosFiscalesProveedor = "Captura los datos fiscales del proveedor.";
@@ -474,13 +688,90 @@ export function ExportRequestFormPage() {
     return Object.keys(nextErrors).length === 0;
   };
 
+  const validateAttachments = () => {
+    /**
+     * Regla de negocio:
+     * - Importacion CIF / FOB / EXW: adjuntos requeridos.
+     * - Cotizacion Informativa: adjuntos opcionales.
+     */
+    if (!attachmentsRequired) {
+      setAttachmentError("");
+      return true;
+    }
+
+    if (attachedFiles.length === 0) {
+      setAttachmentError(
+        "Debes adjuntar al menos un archivo para este tipo de importación."
+      );
+      return false;
+    }
+
+    const invalidFile = attachedFiles.find((file) => !isAllowedAttachment(file));
+    if (invalidFile) {
+      setAttachmentError(
+        `El archivo ${invalidFile.name} no es válido. Solo se permiten ${ALLOWED_ATTACHMENT_TYPES_LABEL}.`
+      );
+      return false;
+    }
+
+    const oversizedFile = attachedFiles.find(
+      (file) => file.size > MAX_ATTACHMENT_SIZE_BYTES
+    );
+    if (oversizedFile) {
+      setAttachmentError(
+        `El archivo ${oversizedFile.name} supera el límite de ${formatFileSize(
+          MAX_ATTACHMENT_SIZE_BYTES
+        )}.`
+      );
+      return false;
+    }
+
+    const totalAttachmentSize = getTotalAttachmentSize(attachedFiles);
+    if (totalAttachmentSize > MAX_TOTAL_ATTACHMENT_SIZE_BYTES) {
+      setAttachmentError(
+        `No puedes superar ${formatFileSize(
+          MAX_TOTAL_ATTACHMENT_SIZE_BYTES
+        )} en total entre todos los adjuntos.`
+      );
+      return false;
+    }
+
+    setAttachmentError("");
+    return true;
+  };
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!validateForm()) {
+    if (!registeredUser.isLoaded) {
       setSubmitMessage({
         type: "error",
-        text: "Revisa los campos marcados antes de enviar el requerimiento.",
+        text: "Espera unos segundos mientras se carga el usuario registrado.",
+      });
+      return;
+    }
+
+    const isFormValid = validateForm();
+    const areAttachmentsValid = validateAttachments();
+
+    if (!isFormValid || !areAttachmentsValid) {
+      setSubmitMessage({
+        type: "error",
+        text: "Revisa los campos marcados y los archivos adjuntos antes de enviar el requerimiento.",
+      });
+      return;
+    }
+
+    const proveedorValidado = getMatchingProveedorOption(form.proveedor);
+
+    if (!proveedorValidado) {
+      setErrors((prev) => ({
+        ...prev,
+        proveedor: "Selecciona un proveedor registrado de la lista.",
+      }));
+      setSubmitMessage({
+        type: "error",
+        text: "Selecciona un proveedor registrado antes de enviar el requerimiento.",
       });
       return;
     }
@@ -490,9 +781,12 @@ export function ExportRequestFormPage() {
 
     try {
       const payload = buildExportacionFlowPayload({
-        form,
+        form: {
+          ...form,
+          proveedor: proveedorValidado,
+        },
         realizadoPor,
-        usuarioCorreo: "",
+        usuarioCorreo: registeredUser.email,
       });
 
       const attachments = await buildExportacionFlowAttachments(attachedFiles);
@@ -529,7 +823,9 @@ export function ExportRequestFormPage() {
 
       setSubmitMessage({
         type: "success",
-        text: flowResult.data?.message || "Requerimiento enviado correctamente.",
+        text:
+          flowResult.data?.message ||
+          "Requerimiento enviado correctamente. El formulario se limpió automáticamente.",
       });
 
       setForm(initialExportFormState);
@@ -538,6 +834,13 @@ export function ExportRequestFormPage() {
       setIsProveedorSuggestionsOpen(false);
       setAttachedFiles([]);
       setAttachmentError("");
+
+      window.setTimeout(() => {
+        document.querySelector(".export-page")?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }, 0);
     } catch (error) {
       console.error(error);
 
@@ -574,19 +877,26 @@ export function ExportRequestFormPage() {
     <main className="export-page">
       <section className="export-hero">
         <div>
-          <h1>Requerimiento de exportación</h1>
+          <h1>TICKET DE COTIZACIÓN</h1>
           <p>
-            Captura la información necesaria para iniciar el seguimiento de una operación de exportación.
-            Los campos operativos internos permanecerán vacíos en Excel para su llenado manual posterior.
+            Captura la información necesaria para iniciar el seguimiento de una operación.
           </p>
         </div>
 
         <div className="export-user-card">
           <span>Registrado por</span>
           <strong>{realizadoPor}</strong>
-          <small>Este dato se llenará automáticamente.</small>
+          <small>
+            {registeredUser.email || "Este dato se llenará automáticamente."}
+          </small>
         </div>
       </section>
+
+      {submitMessage?.type === "success" && (
+        <div className="submit-message submit-message-success">
+          {submitMessage.text}
+        </div>
+      )}
 
       <form className="export-form" onSubmit={handleSubmit}>
         <section className="form-section">
@@ -594,13 +904,12 @@ export function ExportRequestFormPage() {
             <span>01</span>
             <div>
               <h2>Información inicial</h2>
-              <p>Campos D y E del archivo Excel.</p>
             </div>
           </div>
 
           <div className="form-grid">
             <label className="form-field">
-              <span>ICOTERM *</span>
+              <span>INCOTERM *</span>
               <select
                 value={form.icoterm}
                 onChange={(event) => updateField("icoterm", event.target.value)}
@@ -633,12 +942,12 @@ export function ExportRequestFormPage() {
           </div>
         </section>
 
+        {!isConsolidado && (
         <section className="form-section">
           <div className="section-header">
-            <span>02</span>
+            <span>{sectionNumbers.contenedores}</span>
             <div>
               <h2>Contenedores</h2>
-              <p>Campos F, G, H e I del archivo Excel.</p>
             </div>
           </div>
 
@@ -758,23 +1067,32 @@ export function ExportRequestFormPage() {
           </div>
         </section>
 
+        )}
+
         <section className="form-section">
           <div className="section-header">
-            <span>03</span>
+            <span>{sectionNumbers.fechaConsignatario}</span>
             <div>
               <h2>Fecha y consignatario</h2>
-              <p>Campos J y K del archivo Excel.</p>
             </div>
           </div>
 
           <div className="form-grid">
             <label className="form-field">
               <span>Fecha material listo *</span>
+
               <input
                 type="date"
+                min={todayInputDate}
+                max={maxFechaMaterialListo}
                 value={form.fechaMaterialListo}
                 onChange={(event) => updateField("fechaMaterialListo", event.target.value)}
               />
+
+                <p className="field-help-text">
+                  Solo puedes seleccionar una fecha entre hoy y los próximos 7 días.
+                </p>
+       
               {errors.fechaMaterialListo && <small>{errors.fechaMaterialListo}</small>}
             </label>
 
@@ -807,10 +1125,9 @@ export function ExportRequestFormPage() {
 
         <section className="form-section">
           <div className="section-header">
-            <span>04</span>
+            <span>{sectionNumbers.ordenesRuta}</span>
             <div>
               <h2>Órdenes y ruta</h2>
-              <p>Campos L, M, N y O del archivo Excel.</p>
             </div>
           </div>
 
@@ -873,10 +1190,9 @@ export function ExportRequestFormPage() {
 
         <section className="form-section">
           <div className="section-header">
-            <span>05</span>
+            <span>{sectionNumbers.proveedor}</span>
             <div>
               <h2>Proveedor</h2>
-              <p>Campos P, Q y R del archivo Excel.</p>
             </div>
           </div>
 
@@ -893,12 +1209,37 @@ export function ExportRequestFormPage() {
                     setIsProveedorSuggestionsOpen(true);
                   }}
                   onFocus={() => setIsProveedorSuggestionsOpen(true)}
-                  onBlur={() => {
+                  onBlur={(event) => {
+                    const proveedorValue = event.currentTarget.value;
+
                     window.setTimeout(() => {
                       setIsProveedorSuggestionsOpen(false);
+
+                      const proveedorError = getProveedorValidationMessage(proveedorValue);
+                      const proveedorValidado = getMatchingProveedorOption(proveedorValue);
+
+                      if (proveedorError) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          proveedor: proveedorError,
+                        }));
+                        return;
+                      }
+
+                      if (proveedorValidado) {
+                        setForm((prev) => ({
+                          ...prev,
+                          proveedor: proveedorValidado,
+                        }));
+                      }
+
+                      setErrors((prev) => ({
+                        ...prev,
+                        proveedor: "",
+                      }));
                     }, 150);
                   }}
-                  placeholder="Escribe o selecciona un proveedor"
+                  placeholder="Escribe para buscar y selecciona un proveedor"
                   autoComplete="off"
                 />
 
@@ -907,7 +1248,7 @@ export function ExportRequestFormPage() {
                     <div className="proveedor-suggestions-header">
                       <strong>Proveedores registrados</strong>
                       <small>
-                        Puedes seleccionar uno o seguir escribiendo manualmente.
+                        Debes seleccionar uno de la lista para poder enviar.
                       </small>
                     </div>
 
@@ -928,13 +1269,19 @@ export function ExportRequestFormPage() {
 
                       {filteredProveedorOptions.length === 0 && (
                         <div className="proveedor-suggestion-empty">
-                          No se encontraron coincidencias. Puedes capturarlo manualmente.
+                          No se encontraron coincidencias. Debes seleccionar un proveedor registrado.
                         </div>
                       )}
                     </div>
                   </div>
                 )}
               </div>
+
+              {!errors.proveedor && (
+                <p className="field-help-text">
+                  El proveedor debe coincidir con un registro de la lista.
+                </p>
+              )}
 
               {errors.proveedor && <small>{errors.proveedor}</small>}
             </div>
@@ -967,10 +1314,9 @@ export function ExportRequestFormPage() {
 
         <section className="form-section">
           <div className="section-header">
-            <span>06</span>
+            <span>{sectionNumbers.comentariosRegistro}</span>
             <div>
               <h2>Comentarios y registro</h2>
-              <p>Campos S y T del archivo Excel.</p>
             </div>
           </div>
 
@@ -999,7 +1345,7 @@ export function ExportRequestFormPage() {
 
         <section className="form-section">
           <div className="section-header">
-            <span>07</span>
+            <span>{sectionNumbers.adjuntos}</span>
             <div>
               <h2>Datos adjuntos</h2>
               <p>Archivos que se enviarán por correo junto con el requerimiento.</p>
@@ -1008,15 +1354,11 @@ export function ExportRequestFormPage() {
 
           <div className="form-grid">
             <div className="form-field form-field-wide">
-              <span>Archivos adjuntos</span>
-
-              <div className="attachment-email-note">
-                <div>
-                  <span>Correo destino</span>
-                  <strong>{EXPORT_EMAIL_RECIPIENT}</strong>
-                </div>
-                <small>Al conectar el flujo, los archivos seleccionados se enviarán a este correo.</small>
-              </div>
+              <span>
+                {attachmentsRequired
+                  ? "Archivos adjuntos *"
+                  : "Archivos adjuntos (opcional para cotización informativa)"}
+              </span>
 
               <div className="attachment-uploader">
                 <input
@@ -1030,7 +1372,11 @@ export function ExportRequestFormPage() {
 
                 <label className="attachment-dropzone" htmlFor="export-attachments">
                   <strong>Seleccionar archivos</strong>
-                  <span>PDF, XLS o XLSX. Máximo 5 archivos, 10 MB por archivo.</span>
+                  <span>
+                    {attachmentsRequired
+                      ? "Word, Excel, PDF, JPG, PNG, ZIP o RAR. Máximo 10 archivos, 10 MB por archivo y 20 MB en total. Requerido para importaciones."
+                      : "Word, Excel, PDF, JPG, PNG, ZIP o RAR. Máximo 10 archivos, 10 MB por archivo y 20 MB en total. Opcional para cotización informativa."}
+                  </span>
                 </label>
               </div>
 
@@ -1070,8 +1416,8 @@ export function ExportRequestFormPage() {
           </div>
         </section>
 
-        {submitMessage && (
-          <div className={`submit-message submit-message-${submitMessage.type}`}>
+        {submitMessage?.type === "error" && (
+          <div className="submit-message submit-message-error">
             {submitMessage.text}
           </div>
         )}

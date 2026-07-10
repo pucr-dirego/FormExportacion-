@@ -1167,6 +1167,14 @@
   }
 }
 
+.field-help-text {
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+
 
 
 
