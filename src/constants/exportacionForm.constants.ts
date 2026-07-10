@@ -21,7 +21,7 @@ export const initialExportFormState: ExportFormState = {
 
 export const incotermOptions = [
   "Importacion FOB",
-  "Importacion FIB",
+  "Importacion CIF",
   "Importacion EXW",
   "Cotizacion Informativa",
 ];

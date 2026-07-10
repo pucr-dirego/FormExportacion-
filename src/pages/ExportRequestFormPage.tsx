@@ -13,7 +13,12 @@ import {
   tipoOptions,
 } from "../constants/exportacionForm.constants";
 
-import { buildExportacionExcelPayload } from "../services/exportacionPayload";
+import {
+  buildExportacionFlowAttachments,
+  buildExportacionFlowPayload,
+} from "../services/exportacionPayload";
+
+import { TEST_RequerimientosExportaci_nService } from "../generated/services/TEST_RequerimientosExportaci_nService";
 
 import type {
   ExportFormErrors,
@@ -37,13 +42,6 @@ const MAX_ATTACHMENT_SIZE_BYTES = 10 * 1024 * 1024;
 const ACCEPTED_ATTACHMENT_TYPES = ".pdf,.xls,.xlsx";
 const ALLOWED_ATTACHMENT_EXTENSIONS = ["pdf", "xls", "xlsx"];
 
-type EmailAttachmentPayload = {
-  name: string;
-  contentBytes: string;
-  contentType: string;
-  size: number;
-};
-
 function formatFileSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
 
@@ -65,30 +63,6 @@ function getFileExtension(fileName: string) {
 function isAllowedAttachment(file: File) {
   const extension = getFileExtension(file.name);
   return ALLOWED_ATTACHMENT_EXTENSIONS.includes(extension);
-}
-
-function fileToEmailAttachmentPayload(file: File): Promise<EmailAttachmentPayload> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      const contentBytes = result.includes(",") ? result.split(",")[1] : result;
-
-      resolve({
-        name: file.name,
-        contentBytes,
-        contentType: file.type || "application/octet-stream",
-        size: file.size,
-      });
-    };
-
-    reader.onerror = () => {
-      reject(new Error(`No se pudo leer el archivo ${file.name}.`));
-    };
-
-    reader.readAsDataURL(file);
-  });
 }
 
 export function ExportRequestFormPage() {
@@ -515,36 +489,47 @@ export function ExportRequestFormPage() {
     setSubmitMessage(null);
 
     try {
-      const payload = buildExportacionExcelPayload({
+      const payload = buildExportacionFlowPayload({
         form,
         realizadoPor,
+        usuarioCorreo: "",
       });
 
-      const attachmentPayload = await Promise.all(
-        attachedFiles.map((file) => fileToEmailAttachmentPayload(file))
-      );
+      const attachments = await buildExportacionFlowAttachments(attachedFiles);
 
-      console.log("Payload listo para Excel:", payload);
-      console.log("Adjuntos listos para correo:", attachmentPayload);
+      console.log("payloadJson listo para Power Automate:", payload);
+      console.log("attachmentsJson listo para Power Automate:", attachments);
       console.log("Correo destino:", EXPORT_EMAIL_RECIPIENT);
 
-      /**
-       * Aquí después conectamos Power Automate.
-       *
-       * El flujo deberá recibir:
-       * - payload: datos para Excel
-       * - attachmentPayload: archivos para correo
-       * - destinatario: EXPORT_EMAIL_RECIPIENT
-       *
-       * Ejemplo futuro:
-       * await flujoExportacion.run(payload, attachmentPayload, EXPORT_EMAIL_RECIPIENT);
-       */
+      const flowResult = await TEST_RequerimientosExportaci_nService.Run({
+        /**
+         * Ojo:
+         * text_1 = payloadJson
+         * text   = attachmentsJson
+         *
+         * Así lo generó el modelo:
+         * // payloadJson
+         * text_1: string;
+         * // attachmentsJson
+         * text: string;
+         */
+        text_1: JSON.stringify(payload),
+        text: JSON.stringify(attachments),
+      });
 
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      if (!flowResult.success) {
+        throw new Error("El flujo no respondió correctamente.");
+      }
+
+      if (flowResult.data?.status !== "ok") {
+        throw new Error(
+          flowResult.data?.message || "El flujo devolvió una respuesta de error."
+        );
+      }
 
       setSubmitMessage({
         type: "success",
-        text: "Requerimiento preparado correctamente. La conexión con Excel se agregará en el siguiente paso.",
+        text: flowResult.data?.message || "Requerimiento enviado correctamente.",
       });
 
       setForm(initialExportFormState);
@@ -558,7 +543,10 @@ export function ExportRequestFormPage() {
 
       setSubmitMessage({
         type: "error",
-        text: "No se pudo preparar el requerimiento. Intenta nuevamente.",
+        text:
+          error instanceof Error
+            ? error.message
+            : "No se pudo enviar el requerimiento. Intenta nuevamente.",
       });
     } finally {
       setIsSubmitting(false);

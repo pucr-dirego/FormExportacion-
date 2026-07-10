@@ -9,6 +9,31 @@
   "buildEntryPoint": "index.html",
   "localAppUrl": "http://localhost:3000",
   "logoPath": "Default",
-  "connectionReferences": {},
+  "connectionReferences": {
+    "e4d52727-54ae-44a7-830b-78072f866dbe": {
+      "id": "/providers/microsoft.powerapps/apis/shared_excelonlinebusiness",
+      "displayName": "Excel Online (Business)"
+    },
+    "9303f14d-413c-483c-9b4a-8a332bfc8002": {
+      "id": "/providers/microsoft.powerapps/apis/shared_office365",
+      "displayName": "Office 365 Outlook"
+    },
+    "32029aff-4197-4214-8a14-5af7aed44bc2": {
+      "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+      "displayName": "Logic flows",
+      "dataSources": [
+        "test_requerimientosexportaci_n"
+      ],
+      "workflowDetails": {
+        "workflowEntityId": "2e26f25f-a47b-f111-ab0e-70a8a5ae8b0c",
+        "workflowDisplayName": "TEST - Requerimientos Exportación",
+        "workflowName": "d763cc34-13dc-971f-ab57-448ee9adb23d",
+        "dependencies": {
+          "shared_excelonlinebusiness": "e4d52727-54ae-44a7-830b-78072f866dbe",
+          "shared_office365": "9303f14d-413c-483c-9b4a-8a332bfc8002"
+        }
+      }
+    }
+  },
   "databaseReferences": {}
 }

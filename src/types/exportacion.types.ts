@@ -6,7 +6,7 @@ export type ExportFormState = {
   cantidadContenedores20: string;
   cantidadContenedores40: string;
   fechaMaterialListo: string;
-    consignatario: string[];
+  consignatario: string[];
   ordenCompraSistema: string;
   ordenCompraProveedor: string;
   puertoSalida: string;
@@ -58,4 +58,33 @@ export type ExportExcelPayload = {
   "HORA REGISTRO EN DATE": string;
   "HORA MINIMA DE REGISTRO": string;
   "TIEMPO DE RETRASO": string;
+};
+
+export type ExportFlowPayload = {
+  icoterm: string;
+  tipo: string;
+  cantidadContenedores: string;
+  tamanoTipoContenedor: string;
+  cantidadContenedores20: string;
+  cantidadContenedores40: string;
+  fechaMaterialListo: string;
+  consignatario: string;
+  ordenCompraSistema: string;
+  ordenCompraProveedor: string;
+  puertoSalida: string;
+  puertoLlegada: string;
+  proveedor: string;
+  datosFiscalesProveedor: string;
+  informacionContacto: string;
+  informacionContactoProveedor: string;
+  comentarios: string;
+  usuarioNombre: string;
+  usuarioCorreo: string;
+};
+
+export type ExportFlowAttachment = {
+  name: string;
+  contentBytes: string;
+  contentType: string | null;
+  size: number;
 };

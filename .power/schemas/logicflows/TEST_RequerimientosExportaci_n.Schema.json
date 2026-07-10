@@ -1,0 +1,116 @@
+{
+  "name": "TEST - Requerimientos Exportación",
+  "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
+  "type": "Microsoft.PowerApps/apis",
+  "properties": {
+    "displayName": "TEST - Requerimientos Exportación",
+    "isCustom": false,
+    "swagger": {
+      "swagger": "2.0",
+      "info": {
+        "title": "TEST - Requerimientos Exportación",
+        "version": "2015-02-01-preview"
+      },
+      "host": "unitedstates-002.azure-apim.net",
+      "schemes": [
+        "https"
+      ],
+      "consumes": [
+        "application/json"
+      ],
+      "produces": [
+        "application/json"
+      ],
+      "paths": {
+        "/{connectionId}/triggers/manual/run": {
+          "post": {
+            "operationId": "Run",
+            "description": "Runs a logic flow trigger.",
+            "parameters": [
+              {
+                "name": "connectionId",
+                "in": "path",
+                "required": true,
+                "type": "string",
+                "x-ms-visibility": "internal"
+              },
+              {
+                "name": "input",
+                "description": "The trigger's input",
+                "in": "body",
+                "required": true,
+                "schema": {
+                  "$ref": "#/definitions/ManualTriggerInput"
+                }
+              },
+              {
+                "name": "api-version",
+                "description": "The api version",
+                "in": "query",
+                "required": true,
+                "default": "2015-02-01-preview",
+                "x-ms-visibility": "internal",
+                "type": "string"
+              }
+            ],
+            "responses": {
+              "200": {
+                "description": "Ok",
+                "schema": {
+                  "$ref": "#/definitions/ResponseActionOutput"
+                }
+              },
+              "default": {
+                "description": "The Flow Response.",
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "definitions": {
+        "ManualTriggerInput": {
+          "type": "object",
+          "properties": {
+            "text_1": {
+              "title": "payloadJson",
+              "type": "string",
+              "x-ms-dynamically-added": true,
+              "description": "payloadJson",
+              "x-ms-content-hint": "TEXT"
+            },
+            "text": {
+              "title": "attachmentsJson",
+              "type": "string",
+              "x-ms-dynamically-added": true,
+              "description": "attachmentsJson",
+              "x-ms-content-hint": "TEXT"
+            }
+          },
+          "required": [
+            "text_1",
+            "text"
+          ]
+        },
+        "ResponseActionOutput": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "title": "status",
+              "x-ms-dynamically-added": true,
+              "type": "string"
+            },
+            "message": {
+              "title": "message",
+              "x-ms-dynamically-added": true,
+              "type": "string"
+            }
+          }
+        }
+      },
+      "basePath": "/apim/logicflows"
+    }
+  }
+}

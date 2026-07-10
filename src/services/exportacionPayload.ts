@@ -1,5 +1,7 @@
 import type {
   ExportExcelPayload,
+  ExportFlowAttachment,
+  ExportFlowPayload,
   ExportFormState,
 } from "../types/exportacion.types";
 
@@ -8,24 +10,21 @@ type BuildExportacionExcelPayloadParams = {
   realizadoPor: string;
 };
 
+type BuildExportacionFlowPayloadParams = {
+  form: ExportFormState;
+  realizadoPor: string;
+  usuarioCorreo?: string;
+};
+
 export function buildExportacionExcelPayload({
   form,
   realizadoPor,
 }: BuildExportacionExcelPayloadParams): ExportExcelPayload {
   return {
-    /**
-     * Columnas que existen en Excel,
-     * pero NO se muestran en el formulario.
-     * Se mandan vacías.
-     */
     "Row ID": "",
     "ID TICKET": "",
     "FOLIO": "",
 
-    /**
-     * Columnas capturadas desde el formulario.
-     * Orden visible: D a T.
-     */
     "ICOTERM": form.icoterm,
     "TIPO": form.tipo,
     "CANTIDAD CONTENEDORES": form.cantidadContenedores,
@@ -44,10 +43,6 @@ export function buildExportacionExcelPayload({
     "COMENTARIOS": form.comentarios,
     "RELIZADO POR": realizadoPor,
 
-    /**
-     * Columnas operativas/manuales.
-     * Existen en Excel, pero se guardan vacías.
-     */
     "ESTADO CORREO": "",
     "FECHA ENVIO CORREO": "",
     "CORREO DESTINO": "",
@@ -60,4 +55,69 @@ export function buildExportacionExcelPayload({
     "HORA MINIMA DE REGISTRO": "",
     "TIEMPO DE RETRASO": "",
   };
+}
+
+export function buildExportacionFlowPayload({
+  form,
+  realizadoPor,
+  usuarioCorreo = "",
+}: BuildExportacionFlowPayloadParams): ExportFlowPayload {
+  return {
+    icoterm: form.icoterm,
+    tipo: form.tipo,
+    cantidadContenedores: form.cantidadContenedores,
+    tamanoTipoContenedor: form.tamanoTipoContenedor,
+    cantidadContenedores20: form.cantidadContenedores20,
+    cantidadContenedores40: form.cantidadContenedores40,
+    fechaMaterialListo: form.fechaMaterialListo,
+    consignatario: form.consignatario.join(", "),
+    ordenCompraSistema: form.ordenCompraSistema,
+    ordenCompraProveedor: form.ordenCompraProveedor,
+    puertoSalida: form.puertoSalida,
+    puertoLlegada: form.puertoLlegada,
+    proveedor: form.proveedor,
+    datosFiscalesProveedor: form.datosFiscalesProveedor,
+    informacionContacto: form.informacionContactoProveedor,
+    informacionContactoProveedor: form.informacionContactoProveedor,
+    comentarios: form.comentarios,
+    usuarioNombre: realizadoPor,
+    usuarioCorreo,
+  };
+}
+
+export function fileToBase64Clean(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const result = reader.result;
+
+      if (typeof result !== "string") {
+        reject(new Error(`No se pudo leer el archivo: ${file.name}`));
+        return;
+      }
+
+      const base64 = result.includes(",") ? result.split(",")[1] : result;
+      resolve(base64);
+    };
+
+    reader.onerror = () => {
+      reject(new Error(`No se pudo leer el archivo: ${file.name}`));
+    };
+
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function buildExportacionFlowAttachments(
+  files: File[]
+): Promise<ExportFlowAttachment[]> {
+  return Promise.all(
+    files.map(async (file) => ({
+      name: file.name,
+      contentType: file.type || null,
+      size: file.size,
+      contentBytes: await fileToBase64Clean(file),
+    }))
+  );
 }
