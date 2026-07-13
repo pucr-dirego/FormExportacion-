@@ -1174,6 +1174,132 @@
   line-height: 1.4;
 }
 
+.submission-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.58);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.submission-modal {
+  width: min(440px, 100%);
+  padding: 36px 32px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 22px;
+  background: #ffffff;
+  box-shadow:
+    0 24px 60px rgba(15, 23, 42, 0.28),
+    0 8px 20px rgba(15, 23, 42, 0.12);
+  text-align: center;
+  animation: submission-modal-enter 180ms ease-out;
+}
+
+.submission-modal h3 {
+  margin: 22px 0 10px;
+  color: #0f172a;
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.submission-modal > p {
+  margin: 0;
+  color: #475569;
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+.submission-modal > small {
+  display: block;
+  margin-top: 18px;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.submission-spinner {
+  width: 54px;
+  height: 54px;
+  margin: 0 auto;
+  border: 5px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: submission-spinner-rotate 0.8s linear infinite;
+}
+
+.submission-modal-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 22px;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.submission-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: submission-status-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes submission-spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes submission-status-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes submission-modal-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .submission-modal,
+  .submission-spinner,
+  .submission-status-dot {
+    animation: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .submission-modal {
+    padding: 30px 22px;
+    border-radius: 18px;
+  }
+}
+
+
 
 
 

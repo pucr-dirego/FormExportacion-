@@ -29,10 +29,14 @@
         "workflowDisplayName": "TEST - Requerimientos Exportación",
         "workflowName": "d763cc34-13dc-971f-ab57-448ee9adb23d",
         "dependencies": {
-          "shared_excelonlinebusiness": "e4d52727-54ae-44a7-830b-78072f866dbe",
+          "shared_sharepointonline": "c33e620a-3822-401a-b303-af9d0eacb0e5",
           "shared_office365": "9303f14d-413c-483c-9b4a-8a332bfc8002"
         }
       }
+    },
+    "c33e620a-3822-401a-b303-af9d0eacb0e5": {
+      "id": "/providers/microsoft.powerapps/apis/shared_sharepointonline",
+      "displayName": "SharePoint"
     }
   },
   "databaseReferences": {}

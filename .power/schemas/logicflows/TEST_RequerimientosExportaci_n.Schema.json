@@ -73,26 +73,8 @@
       "definitions": {
         "ManualTriggerInput": {
           "type": "object",
-          "properties": {
-            "text_1": {
-              "title": "payloadJson",
-              "type": "string",
-              "x-ms-dynamically-added": true,
-              "description": "payloadJson",
-              "x-ms-content-hint": "TEXT"
-            },
-            "text": {
-              "title": "attachmentsJson",
-              "type": "string",
-              "x-ms-dynamically-added": true,
-              "description": "attachmentsJson",
-              "x-ms-content-hint": "TEXT"
-            }
-          },
-          "required": [
-            "text_1",
-            "text"
-          ]
+          "properties": {},
+          "required": []
         },
         "ResponseActionOutput": {
           "type": "object",

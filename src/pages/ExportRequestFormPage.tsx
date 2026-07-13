@@ -132,21 +132,6 @@ function isConsolidadoTipo(tipo: string) {
   return normalizeText(tipo) === "CONSOLIDADO";
 }
 
-function formatDateInputValue(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-
-  return nextDate;
-}
-
 export function ExportRequestFormPage() {
   const [form, setForm] = useState<ExportFormState>(initialExportFormState);
   const [errors, setErrors] = useState<ExportFormErrors>({});
@@ -206,12 +191,6 @@ export function ExportRequestFormPage() {
   const realizadoPor = registeredUser.fullName;
   const attachmentsRequired = isAttachmentsRequiredForIcoterm(form.icoterm);
   const isConsolidado = isConsolidadoTipo(form.tipo);
-
-  const todayInputDate = useMemo(() => formatDateInputValue(new Date()), []);
-  const maxFechaMaterialListo = useMemo(
-    () => formatDateInputValue(addDays(new Date(), 7)),
-    []
-  );
 
   const sectionNumbers = useMemo(
     () => ({
@@ -638,17 +617,8 @@ export function ExportRequestFormPage() {
     }
 
     if (!form.fechaMaterialListo.trim()) {
-      nextErrors.fechaMaterialListo = "Indica la fecha en que el material estará listo.";
-    } else {
-      const currentDate = formatDateInputValue(new Date());
-      const maxAllowedDate = formatDateInputValue(addDays(new Date(), 7));
-
-      if (form.fechaMaterialListo < currentDate) {
-        nextErrors.fechaMaterialListo = "La fecha no puede ser anterior al día de hoy.";
-      } else if (form.fechaMaterialListo > maxAllowedDate) {
-        nextErrors.fechaMaterialListo =
-          "La fecha material listo no puede ser mayor a 7 días a partir de hoy.";
-      }
+      nextErrors.fechaMaterialListo =
+        "Indica la fecha en que el material estará listo.";
     }
 
     if (form.consignatario.length === 0) {
@@ -898,7 +868,11 @@ export function ExportRequestFormPage() {
         </div>
       )}
 
-      <form className="export-form" onSubmit={handleSubmit}>
+      <form
+        className="export-form"
+        onSubmit={handleSubmit}
+        aria-busy={isSubmitting}
+      >
         <section className="form-section">
           <div className="section-header">
             <span>01</span>
@@ -1083,17 +1057,15 @@ export function ExportRequestFormPage() {
 
               <input
                 type="date"
-                min={todayInputDate}
-                max={maxFechaMaterialListo}
                 value={form.fechaMaterialListo}
-                onChange={(event) => updateField("fechaMaterialListo", event.target.value)}
+                onChange={(event) =>
+                  updateField("fechaMaterialListo", event.target.value)
+                }
               />
 
-                <p className="field-help-text">
-                  Solo puedes seleccionar una fecha entre hoy y los próximos 7 días.
-                </p>
-       
-              {errors.fechaMaterialListo && <small>{errors.fechaMaterialListo}</small>}
+              {errors.fechaMaterialListo && (
+                <small>{errors.fechaMaterialListo}</small>
+              )}
             </label>
 
             <div className="form-field form-field-wide">
@@ -1433,10 +1405,41 @@ export function ExportRequestFormPage() {
           </button>
 
           <button type="submit" className="primary-button" disabled={isSubmitting}>
-            {isSubmitting ? "Preparando..." : "Enviar requerimiento"}
+            {isSubmitting ? "Enviando..." : "Enviar requerimiento"}
           </button>
         </div>
       </form>
+
+      {isSubmitting && (
+        <div
+          className="submission-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="submission-modal-title"
+          aria-describedby="submission-modal-description"
+        >
+          <div className="submission-modal">
+            <div className="submission-spinner" aria-hidden="true" />
+
+            <h3 id="submission-modal-title">Enviando requerimiento</h3>
+
+            <p id="submission-modal-description">
+              Estamos generando el folio, registrando la información y enviando
+              los correos correspondientes.
+            </p>
+
+            <div className="submission-modal-status" aria-live="polite">
+              <span className="submission-status-dot" />
+              Procesando solicitud
+            </div>
+
+            <small>
+              Este proceso puede tardar algunos segundos. No cierres esta ventana
+              ni vuelvas a presionar el botón de envío.
+            </small>
+          </div>
+        </div>
+      )}
 
       {isConsignatarioModalOpen && (
         <div className="consignatario-modal-overlay">
