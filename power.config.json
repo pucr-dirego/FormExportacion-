@@ -14,15 +14,15 @@
       "id": "/providers/microsoft.powerapps/apis/shared_excelonlinebusiness",
       "displayName": "Excel Online (Business)"
     },
-    "262d3609-0256-450c-9962-7f23a59dba51": {
+    "c2941ba1-287f-4325-9fe1-330359bb45f2": {
       "id": "/providers/microsoft.powerapps/apis/shared_sharepointonline",
       "displayName": "SharePoint"
     },
-    "567e4671-9c09-49e3-b651-79803a4c5f50": {
+    "3bd56500-ab84-4446-9351-3aa890821f9f": {
       "id": "/providers/microsoft.powerapps/apis/shared_office365",
       "displayName": "Office 365 Outlook"
     },
-    "ca4286bb-d055-464c-9939-e60dd411c366": {
+    "6232bf60-a288-41e9-a65a-2417498910a1": {
       "id": "/providers/Microsoft.PowerApps/apis/shared_logicflows",
       "displayName": "Logic flows",
       "dataSources": [
@@ -33,8 +33,8 @@
         "workflowDisplayName": "TEST - Requerimientos Exportación",
         "workflowName": "d763cc34-13dc-971f-ab57-448ee9adb23d",
         "dependencies": {
-          "shared_sharepointonline": "262d3609-0256-450c-9962-7f23a59dba51",
-          "shared_office365": "567e4671-9c09-49e3-b651-79803a4c5f50"
+          "shared_sharepointonline": "c2941ba1-287f-4325-9fe1-330359bb45f2",
+          "shared_office365": "3bd56500-ab84-4446-9351-3aa890821f9f"
         }
       }
     }
